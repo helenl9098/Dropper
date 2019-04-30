@@ -81,7 +81,7 @@ function loadScene() {
 
   if (controls.corridorTexture == 'pebbles') {
     
-    pebbleSource = new Texture('https://raw.githubusercontent.com/helenl9098/Dropper/master/src/resources/pebbles.png', 0);
+    pebbleSource = new Texture('./resources/pebbles.png', 0);
   }
   if (controls.corridorTexture == 'geometric') {
     pebbleSource = new Texture('../src/resources/geometric.jpg', 0);
