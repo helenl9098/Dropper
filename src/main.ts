@@ -80,28 +80,28 @@ function loadScene() {
   start = false;
 
   if (controls.corridorTexture == 'pebbles') {
-    pebbleSource = new Texture('../src/resources/pebbles.png', 0);
+    pebbleSource = new Texture('https://raw.githubusercontent.com/helenl9098/Dropper/gh-pages/src/resources/pebbles.png', 0);
   }
   if (controls.corridorTexture == 'geometric') {
-    pebbleSource = new Texture('../src/resources/geometric.jpg', 0);
+    pebbleSource = new Texture('https://raw.githubusercontent.com/helenl9098/Dropper/gh-pages/src/resources/geometric.jpg', 0);
   }
   if (controls.corridorTexture == 'brick') {
-    pebbleSource = new Texture('../src/resources/waves.jpg', 0);
+    pebbleSource = new Texture('https://raw.githubusercontent.com/helenl9098/Dropper/gh-pages/src/resources/waves.jpg', 0);
   }
   if (controls.corridorTexture == 'sharp') {
-    pebbleSource = new Texture('../src/resources/sharp.jpg', 0);
+    pebbleSource = new Texture('https://raw.githubusercontent.com/helenl9098/Dropper/gh-pages/src/resources/sharp.jpg', 0);
   }
   if (controls.corridorTexture == 'tiles') {
-    pebbleSource = new Texture('../src/resources/cubes.png', 0);
+    pebbleSource = new Texture('https://raw.githubusercontent.com/helenl9098/Dropper/gh-pages/src/resources/cubes.png', 0);
   }
   if (controls.corridorTexture == 'scales') {
-    pebbleSource = new Texture('../src/resources/scales.jpg', 0);
+    pebbleSource = new Texture('https://raw.githubusercontent.com/helenl9098/Dropper/gh-pages/src/resources/scales.jpg', 0);
   }
   if (controls.corridorTexture == 'spiral') {
-    pebbleSource = new Texture('../src/resources/sand.jpg', 0);
+    pebbleSource = new Texture('https://raw.githubusercontent.com/helenl9098/Dropper/gh-pages/src/resources/sand.jpg', 0);
   }
     if (controls.corridorTexture == 'thorns') {
-    pebbleSource = new Texture('../src/resources/succulent.jpg', 0);
+    pebbleSource = new Texture('https://raw.githubusercontent.com/helenl9098/Dropper/gh-pages/src/resources/succulent.jpg', 0);
   }
 
   square = new Square(vec3.fromValues(0, 0, 0));

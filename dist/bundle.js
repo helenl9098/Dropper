@@ -5976,28 +5976,28 @@ function updateCurrentScore(score) {
 function loadScene() {
     start = false;
     if (controls.corridorTexture == 'pebbles') {
-        pebbleSource = new __WEBPACK_IMPORTED_MODULE_8__rendering_gl_Texture__["a" /* default */]('../src/resources/pebbles.png', 0);
+        pebbleSource = new __WEBPACK_IMPORTED_MODULE_8__rendering_gl_Texture__["a" /* default */]('https://raw.githubusercontent.com/helenl9098/Dropper/gh-pages/src/resources/pebbles.png', 0);
     }
     if (controls.corridorTexture == 'geometric') {
-        pebbleSource = new __WEBPACK_IMPORTED_MODULE_8__rendering_gl_Texture__["a" /* default */]('../src/resources/geometric.jpg', 0);
+        pebbleSource = new __WEBPACK_IMPORTED_MODULE_8__rendering_gl_Texture__["a" /* default */]('https://raw.githubusercontent.com/helenl9098/Dropper/gh-pages/src/resources/geometric.jpg', 0);
     }
     if (controls.corridorTexture == 'brick') {
-        pebbleSource = new __WEBPACK_IMPORTED_MODULE_8__rendering_gl_Texture__["a" /* default */]('../src/resources/waves.jpg', 0);
+        pebbleSource = new __WEBPACK_IMPORTED_MODULE_8__rendering_gl_Texture__["a" /* default */]('https://raw.githubusercontent.com/helenl9098/Dropper/gh-pages/src/resources/waves.jpg', 0);
     }
     if (controls.corridorTexture == 'sharp') {
-        pebbleSource = new __WEBPACK_IMPORTED_MODULE_8__rendering_gl_Texture__["a" /* default */]('../src/resources/sharp.jpg', 0);
+        pebbleSource = new __WEBPACK_IMPORTED_MODULE_8__rendering_gl_Texture__["a" /* default */]('https://raw.githubusercontent.com/helenl9098/Dropper/gh-pages/src/resources/sharp.jpg', 0);
     }
     if (controls.corridorTexture == 'tiles') {
-        pebbleSource = new __WEBPACK_IMPORTED_MODULE_8__rendering_gl_Texture__["a" /* default */]('../src/resources/cubes.png', 0);
+        pebbleSource = new __WEBPACK_IMPORTED_MODULE_8__rendering_gl_Texture__["a" /* default */]('https://raw.githubusercontent.com/helenl9098/Dropper/gh-pages/src/resources/cubes.png', 0);
     }
     if (controls.corridorTexture == 'scales') {
-        pebbleSource = new __WEBPACK_IMPORTED_MODULE_8__rendering_gl_Texture__["a" /* default */]('../src/resources/scales.jpg', 0);
+        pebbleSource = new __WEBPACK_IMPORTED_MODULE_8__rendering_gl_Texture__["a" /* default */]('https://raw.githubusercontent.com/helenl9098/Dropper/gh-pages/src/resources/scales.jpg', 0);
     }
     if (controls.corridorTexture == 'spiral') {
-        pebbleSource = new __WEBPACK_IMPORTED_MODULE_8__rendering_gl_Texture__["a" /* default */]('../src/resources/sand.jpg', 0);
+        pebbleSource = new __WEBPACK_IMPORTED_MODULE_8__rendering_gl_Texture__["a" /* default */]('https://raw.githubusercontent.com/helenl9098/Dropper/gh-pages/src/resources/sand.jpg', 0);
     }
     if (controls.corridorTexture == 'thorns') {
-        pebbleSource = new __WEBPACK_IMPORTED_MODULE_8__rendering_gl_Texture__["a" /* default */]('../src/resources/succulent.jpg', 0);
+        pebbleSource = new __WEBPACK_IMPORTED_MODULE_8__rendering_gl_Texture__["a" /* default */]('https://raw.githubusercontent.com/helenl9098/Dropper/gh-pages/src/resources/succulent.jpg', 0);
     }
     square = new __WEBPACK_IMPORTED_MODULE_3__geometry_Square__["a" /* default */](__WEBPACK_IMPORTED_MODULE_0_gl_matrix__["c" /* vec3 */].fromValues(0, 0, 0));
     square.create();
@@ -16670,6 +16670,7 @@ class Texture {
                 __WEBPACK_IMPORTED_MODULE_0__globals__["a" /* gl */].texParameteri(__WEBPACK_IMPORTED_MODULE_0__globals__["a" /* gl */].TEXTURE_2D, __WEBPACK_IMPORTED_MODULE_0__globals__["a" /* gl */].TEXTURE_MAG_FILTER, __WEBPACK_IMPORTED_MODULE_0__globals__["a" /* gl */].LINEAR);
             }.bind(this);
         }
+        img.crossOrigin = '';
         img.src = imgSource; // load the image
     }
 }
