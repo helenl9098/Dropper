@@ -53,8 +53,8 @@ export class Texture {
     }.bind(this);
   }
 
+        img.crossOrigin = '';
   	img.src = imgSource; // load the image
-    img.crossOrigin = '';
   }
 
 
