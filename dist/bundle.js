@@ -5905,6 +5905,8 @@ Object.defineProperty(__webpack_exports__, "__esModule", { value: true });
 /* harmony import */ var __WEBPACK_IMPORTED_MODULE_5__Camera__ = __webpack_require__(32);
 /* harmony import */ var __WEBPACK_IMPORTED_MODULE_6__globals__ = __webpack_require__(1);
 /* harmony import */ var __WEBPACK_IMPORTED_MODULE_7__rendering_gl_ShaderProgram__ = __webpack_require__(67);
+/* harmony import */ var __WEBPACK_IMPORTED_MODULE_8__rendering_gl_Texture__ = __webpack_require__(68);
+
 
 
 
@@ -5916,18 +5918,87 @@ Object.defineProperty(__webpack_exports__, "__esModule", { value: true });
 // Define an object with application parameters and button callbacks
 // This will be referred to by dat.GUI's functions that add GUI elements.
 const controls = {
-    stickiness: 0.1,
-    bounceSpeed: 70.0,
-    map: 'rings'
+    map: 'corridor',
+    difficulty: 'easy',
+    corridorTexture: 'pebbles',
+    intersection: true
 };
 let square;
-let time = 0;
+let time = 0.1;
+let velocity = 1.0;
 let wPressed;
 let aPressed;
 let sPressed;
 let dPressed;
 let translation;
+let ringScore = 0.0;
+let cubeScore = 0.0;
+let corridorScore = 0.0;
+let currentScore = 0.0;
+let start;
+let pebbleSource;
+var size = [752, 582];
+var highText = document.getElementById('high-score');
+var currentText = document.getElementById('current-score');
+function updateHighScore() {
+    if (controls.map == "cube") {
+        highText.innerHTML = "High Score: " + cubeScore.toString();
+    }
+    else if (controls.map == "rings") {
+        highText.innerHTML = "High Score: " + ringScore.toString();
+    }
+    else {
+        highText.innerHTML = "High Score: " + corridorScore.toString();
+    }
+}
+function updateCurrentScore(score) {
+    currentScore = Math.round(score * 10) / 10;
+    currentText.innerHTML = "Current Score: " + currentScore.toString();
+    if (controls.map == "cube") {
+        if (currentScore > cubeScore) {
+            cubeScore = currentScore;
+            highText.innerHTML = "High Score: " + cubeScore.toString();
+        }
+    }
+    else if (controls.map == "rings") {
+        if (currentScore > ringScore) {
+            ringScore = currentScore;
+            highText.innerHTML = "High Score: " + ringScore.toString();
+        }
+    }
+    else {
+        if (currentScore > corridorScore) {
+            corridorScore = currentScore;
+            highText.innerHTML = "High Score: " + corridorScore.toString();
+        }
+    }
+}
 function loadScene() {
+    start = false;
+    if (controls.corridorTexture == 'pebbles') {
+        pebbleSource = new __WEBPACK_IMPORTED_MODULE_8__rendering_gl_Texture__["a" /* default */]('../src/resources/pebbles.png', 0);
+    }
+    if (controls.corridorTexture == 'geometric') {
+        pebbleSource = new __WEBPACK_IMPORTED_MODULE_8__rendering_gl_Texture__["a" /* default */]('../src/resources/geometric.jpg', 0);
+    }
+    if (controls.corridorTexture == 'brick') {
+        pebbleSource = new __WEBPACK_IMPORTED_MODULE_8__rendering_gl_Texture__["a" /* default */]('../src/resources/waves.jpg', 0);
+    }
+    if (controls.corridorTexture == 'sharp') {
+        pebbleSource = new __WEBPACK_IMPORTED_MODULE_8__rendering_gl_Texture__["a" /* default */]('../src/resources/sharp.jpg', 0);
+    }
+    if (controls.corridorTexture == 'tiles') {
+        pebbleSource = new __WEBPACK_IMPORTED_MODULE_8__rendering_gl_Texture__["a" /* default */]('../src/resources/cubes.png', 0);
+    }
+    if (controls.corridorTexture == 'scales') {
+        pebbleSource = new __WEBPACK_IMPORTED_MODULE_8__rendering_gl_Texture__["a" /* default */]('../src/resources/scales.jpg', 0);
+    }
+    if (controls.corridorTexture == 'spiral') {
+        pebbleSource = new __WEBPACK_IMPORTED_MODULE_8__rendering_gl_Texture__["a" /* default */]('../src/resources/sand.jpg', 0);
+    }
+    if (controls.corridorTexture == 'thorns') {
+        pebbleSource = new __WEBPACK_IMPORTED_MODULE_8__rendering_gl_Texture__["a" /* default */]('../src/resources/succulent.jpg', 0);
+    }
     square = new __WEBPACK_IMPORTED_MODULE_3__geometry_Square__["a" /* default */](__WEBPACK_IMPORTED_MODULE_0_gl_matrix__["c" /* vec3 */].fromValues(0, 0, 0));
     square.create();
     wPressed = false;
@@ -5938,6 +6009,7 @@ function loadScene() {
     // time = 0;
 }
 function main() {
+    var startText = document.getElementById('dropper-start');
     window.addEventListener('keypress', function (e) {
         // console.log(e.key);
         switch (e.key) {
@@ -5952,6 +6024,10 @@ function main() {
                 break;
             case 'd':
                 dPressed = true;
+                break;
+            case 'f':
+                start = true;
+                startText.style.display = "none";
                 break;
         }
     }, false);
@@ -5980,12 +6056,46 @@ function main() {
     document.body.appendChild(stats.domElement);
     // Add controls to the gui
     const gui = new __WEBPACK_IMPORTED_MODULE_2_dat_gui__["GUI"]();
-    var guiMap = gui.add(controls, 'map', ['rings', 'cube', 'map #3']);
-    // gui.add(controls, 'stickiness', 0.0, 5.0);
-    // gui.add(controls, 'bounceSpeed', 0.1, 100.0);
+    var guiMap = gui.add(controls, 'map', ['rings', 'cube', 'corridor']);
+    var guiDifficulty = gui.add(controls, 'difficulty', ['easy', 'medium', 'hard']);
+    var guiTexture = gui.add(controls, 'corridorTexture', ['pebbles', 'geometric', 'brick', 'sharp', 'tiles', 'scales', 'spiral', "thorns"]);
+    var guiIntersection = gui.add(controls, 'intersection');
+    guiMap.onChange(function () {
+        time = 0.1;
+        translation[0] = 0.0;
+        translation[1] = 0.0;
+        start = false;
+        startText.style.display = "block";
+        velocity = 1.0;
+        updateHighScore();
+    });
+    guiDifficulty.onChange(function () {
+        time = 0.1;
+        translation[0] = 0.0;
+        translation[1] = 0.0;
+        start = false;
+        startText.style.display = "block";
+        velocity = 1.0;
+        updateCurrentScore(0.0);
+    });
+    guiTexture.onChange(function () {
+        time = 0.1;
+        translation[0] = 0.0;
+        translation[1] = 0.0;
+        start = false;
+        startText.style.display = "block";
+        velocity = 1.0;
+        updateHighScore();
+        loadScene();
+        flat.bindTexToUnit(flat.unifSampler1, pebbleSource, 0);
+    });
     // get canvas and webgl context
-    const canvas = document.getElementById('canvas');
+    var canvas = document.getElementById('canvas');
     const gl = canvas.getContext('webgl2');
+    //gl.scissor(0,0,size[0],size[1]);
+    canvas.width = size[0];
+    canvas.height = size[0] / 1.29;
+    //gl.enable(gl.SCISSOR_TEST);
     if (!gl) {
         alert('WebGL 2 not supported!');
     }
@@ -5999,48 +6109,101 @@ function main() {
     renderer.setClearColor(164.0 / 255.0, 233.0 / 255.0, 1.0, 1);
     gl.enable(gl.DEPTH_TEST);
     const flat = new __WEBPACK_IMPORTED_MODULE_7__rendering_gl_ShaderProgram__["b" /* default */]([
-        new __WEBPACK_IMPORTED_MODULE_7__rendering_gl_ShaderProgram__["a" /* Shader */](gl.VERTEX_SHADER, __webpack_require__(68)),
-        new __WEBPACK_IMPORTED_MODULE_7__rendering_gl_ShaderProgram__["a" /* Shader */](gl.FRAGMENT_SHADER, __webpack_require__(69)),
+        new __WEBPACK_IMPORTED_MODULE_7__rendering_gl_ShaderProgram__["a" /* Shader */](gl.VERTEX_SHADER, __webpack_require__(69)),
+        new __WEBPACK_IMPORTED_MODULE_7__rendering_gl_ShaderProgram__["a" /* Shader */](gl.FRAGMENT_SHADER, __webpack_require__(70)),
     ]);
+    flat.bindTexToUnit(flat.unifSampler1, pebbleSource, 0);
     function processKeyPresses() {
-        if (wPressed) {
-            translation[1] += 1.0;
-        }
-        if (aPressed) {
-            translation[0] += 1.0;
-        }
-        if (sPressed) {
-            translation[1] -= 1.0;
-        }
-        if (dPressed) {
-            translation[0] -= 1.0;
+        if (start) {
+            if (wPressed) {
+                translation[1] += 1.0;
+            }
+            if (aPressed) {
+                translation[0] += 1.0;
+            }
+            if (sPressed) {
+                translation[1] -= 1.0;
+            }
+            if (dPressed) {
+                translation[0] -= 1.0;
+            }
         }
     }
     // This function will be called every frame
     function tick() {
         camera.update();
         stats.begin();
-        gl.viewport(0, 0, window.innerWidth, window.innerHeight);
+        gl.viewport(0, 0, gl.canvas.width, gl.canvas.height);
         renderer.clear();
         processKeyPresses();
-        renderer.render(camera, flat, [
+        var intersect = renderer.render(camera, flat, [
             square,
-        ], time, controls.stickiness, controls.bounceSpeed, controls.map, translation);
-        time++;
+        ], time, controls.map, translation, start);
+        // INTERSECTION TESTING
+        if (intersect && controls.intersection) {
+            //console.log("intersected!");
+            time = 0.1;
+            translation[0] = 0.0;
+            translation[1] = 0.0;
+            start = false;
+            startText.style.display = "block";
+            velocity = 1.0;
+            updateCurrentScore(0);
+        }
+        else if (start && (!intersect || !controls.intersection)) {
+            // slow start
+            // //console.log("time");
+            // if (time < 4.0) {
+            //   if ((time / 1.5) * (time / 1.5) < 1.0) {
+            //   time += (time / 1.5) * (time / 1.5);
+            //     }
+            //     else {
+            //       time++;
+            //     }
+            // } else {
+            time += velocity;
+            if (controls.difficulty == "easy") {
+                if (velocity < 2.0) {
+                    velocity += 0.001;
+                }
+            }
+            else if (controls.difficulty == "medium") {
+                if (velocity < 2.3) {
+                    velocity += 0.003;
+                }
+            }
+            else if (controls.difficulty == "hard") {
+                if (velocity < 2.5) {
+                    velocity += 0.005;
+                }
+            }
+            updateCurrentScore(time);
+            //}
+        }
         stats.end();
         // Tell the browser to call `tick` again whenever it renders a new frame
         requestAnimationFrame(tick);
     }
     window.addEventListener('resize', function () {
-        renderer.setSize(window.innerWidth, window.innerHeight);
-        camera.setAspectRatio(window.innerWidth / window.innerHeight);
+        window.resizeTo(250, 250); // Resizes the new window
+        window.focus();
+        //gl.scissor(0,0,size[0],size[1]);
+        //gl.enable(gl.SCISSOR_TEST);
+        canvas.width = size[0];
+        canvas.height = size[0] / 1.29;
+        gl.viewport(0, 0, size[0], size[0] / 1.29);
+        renderer.setSize(size[0], size[0] / 1.29);
+        camera.setAspectRatio(size[0] / 1.29);
         camera.updateProjectionMatrix();
-        flat.setDimensions(window.innerWidth, window.innerHeight);
+        flat.setDimensions(size[0], size[0] / 1.29);
     }, false);
-    renderer.setSize(window.innerWidth, window.innerHeight);
-    camera.setAspectRatio(window.innerWidth / window.innerHeight);
+    canvas.width = size[0];
+    canvas.height = size[0] / 1.29;
+    gl.viewport(0, 0, gl.canvas.width, gl.canvas.height);
+    renderer.setSize(size[0], size[0] / 1.29);
+    camera.setAspectRatio(size[0] / 1.29);
     camera.updateProjectionMatrix();
-    flat.setDimensions(window.innerWidth, window.innerHeight);
+    flat.setDimensions(size[0], size[0] / 1.29);
     // Start the render loop
     tick();
 }
@@ -13130,6 +13293,9 @@ class Drawable {
 "use strict";
 /* harmony import */ var __WEBPACK_IMPORTED_MODULE_0__globals__ = __webpack_require__(1);
 
+let utime = 0;
+var size = [752, 582];
+//let uTranslation: 
 // In this file, `gl` is accessible because it is imported above
 class OpenGLRenderer {
     constructor(canvas) {
@@ -13145,15 +13311,72 @@ class OpenGLRenderer {
     clear() {
         __WEBPACK_IMPORTED_MODULE_0__globals__["a" /* gl */].clear(__WEBPACK_IMPORTED_MODULE_0__globals__["a" /* gl */].COLOR_BUFFER_BIT | __WEBPACK_IMPORTED_MODULE_0__globals__["a" /* gl */].DEPTH_BUFFER_BIT);
     }
-    render(camera, prog, drawables, time, sticky, bounce, map, translation) {
+    render(camera, prog, drawables, time, map, translation, start) {
+        this.canvas.width = size[0];
+        this.canvas.height = size[1];
+        // create to render to
+        const targetTextureWidth = 1;
+        const targetTextureHeight = 1;
+        const targetTexture = __WEBPACK_IMPORTED_MODULE_0__globals__["a" /* gl */].createTexture();
+        __WEBPACK_IMPORTED_MODULE_0__globals__["a" /* gl */].activeTexture(__WEBPACK_IMPORTED_MODULE_0__globals__["a" /* gl */].TEXTURE0 + 1);
+        //targetTexture.bindTex();
+        //gl.uniform1i(handleName, 1);
+        __WEBPACK_IMPORTED_MODULE_0__globals__["a" /* gl */].bindTexture(__WEBPACK_IMPORTED_MODULE_0__globals__["a" /* gl */].TEXTURE_2D, targetTexture);
+        {
+            // define size and format of level 0
+            const level = 0;
+            const internalFormat = __WEBPACK_IMPORTED_MODULE_0__globals__["a" /* gl */].RGBA;
+            const border = 0;
+            const format = __WEBPACK_IMPORTED_MODULE_0__globals__["a" /* gl */].RGBA;
+            const type = __WEBPACK_IMPORTED_MODULE_0__globals__["a" /* gl */].UNSIGNED_BYTE;
+            const data = null;
+            __WEBPACK_IMPORTED_MODULE_0__globals__["a" /* gl */].texImage2D(__WEBPACK_IMPORTED_MODULE_0__globals__["a" /* gl */].TEXTURE_2D, level, internalFormat, targetTextureWidth, targetTextureHeight, border, format, type, data);
+            // set the filtering so we don't need mips
+            __WEBPACK_IMPORTED_MODULE_0__globals__["a" /* gl */].texParameteri(__WEBPACK_IMPORTED_MODULE_0__globals__["a" /* gl */].TEXTURE_2D, __WEBPACK_IMPORTED_MODULE_0__globals__["a" /* gl */].TEXTURE_MIN_FILTER, __WEBPACK_IMPORTED_MODULE_0__globals__["a" /* gl */].LINEAR);
+            __WEBPACK_IMPORTED_MODULE_0__globals__["a" /* gl */].texParameteri(__WEBPACK_IMPORTED_MODULE_0__globals__["a" /* gl */].TEXTURE_2D, __WEBPACK_IMPORTED_MODULE_0__globals__["a" /* gl */].TEXTURE_WRAP_S, __WEBPACK_IMPORTED_MODULE_0__globals__["a" /* gl */].CLAMP_TO_EDGE);
+            __WEBPACK_IMPORTED_MODULE_0__globals__["a" /* gl */].texParameteri(__WEBPACK_IMPORTED_MODULE_0__globals__["a" /* gl */].TEXTURE_2D, __WEBPACK_IMPORTED_MODULE_0__globals__["a" /* gl */].TEXTURE_WRAP_T, __WEBPACK_IMPORTED_MODULE_0__globals__["a" /* gl */].CLAMP_TO_EDGE);
+        }
+        // Create and bind the framebuffer
+        const fb = __WEBPACK_IMPORTED_MODULE_0__globals__["a" /* gl */].createFramebuffer();
+        __WEBPACK_IMPORTED_MODULE_0__globals__["a" /* gl */].bindFramebuffer(__WEBPACK_IMPORTED_MODULE_0__globals__["a" /* gl */].FRAMEBUFFER, fb);
+        // attach the texture as the first color attachment
+        const attachmentPoint = __WEBPACK_IMPORTED_MODULE_0__globals__["a" /* gl */].COLOR_ATTACHMENT0;
+        __WEBPACK_IMPORTED_MODULE_0__globals__["a" /* gl */].framebufferTexture2D(__WEBPACK_IMPORTED_MODULE_0__globals__["a" /* gl */].FRAMEBUFFER, attachmentPoint, __WEBPACK_IMPORTED_MODULE_0__globals__["a" /* gl */].TEXTURE_2D, targetTexture, 0);
+        for (let drawable of drawables) {
+            // render to our targetTexture by binding the framebuffer
+            __WEBPACK_IMPORTED_MODULE_0__globals__["a" /* gl */].bindFramebuffer(__WEBPACK_IMPORTED_MODULE_0__globals__["a" /* gl */].FRAMEBUFFER, fb);
+            // render cube with our 3x2 texture
+            __WEBPACK_IMPORTED_MODULE_0__globals__["a" /* gl */].bindTexture(__WEBPACK_IMPORTED_MODULE_0__globals__["a" /* gl */].TEXTURE_2D, targetTexture);
+            // Tell WebGL how to convert from clip space to pixels
+            __WEBPACK_IMPORTED_MODULE_0__globals__["a" /* gl */].viewport(0, 0, targetTextureWidth, targetTextureHeight);
+            // Clear the canvas AND the depth buffer.
+            __WEBPACK_IMPORTED_MODULE_0__globals__["a" /* gl */].clearColor(0, 0, 1, 1); // clear to blue
+            __WEBPACK_IMPORTED_MODULE_0__globals__["a" /* gl */].clear(__WEBPACK_IMPORTED_MODULE_0__globals__["a" /* gl */].COLOR_BUFFER_BIT | __WEBPACK_IMPORTED_MODULE_0__globals__["a" /* gl */].DEPTH_BUFFER_BIT);
+            var aspect = targetTextureWidth / targetTextureHeight;
+            prog.draw(drawable);
+            var pixels = new Uint8Array(1 * 4);
+            __WEBPACK_IMPORTED_MODULE_0__globals__["a" /* gl */].readPixels(0, 0, 1, 1, __WEBPACK_IMPORTED_MODULE_0__globals__["a" /* gl */].RGBA, __WEBPACK_IMPORTED_MODULE_0__globals__["a" /* gl */].UNSIGNED_BYTE, pixels);
+            // render to the canvas
+            __WEBPACK_IMPORTED_MODULE_0__globals__["a" /* gl */].bindFramebuffer(__WEBPACK_IMPORTED_MODULE_0__globals__["a" /* gl */].FRAMEBUFFER, null);
+            // render the cube with the texture we just rendered to
+            __WEBPACK_IMPORTED_MODULE_0__globals__["a" /* gl */].bindTexture(__WEBPACK_IMPORTED_MODULE_0__globals__["a" /* gl */].TEXTURE_2D, targetTexture);
+            // Tell WebGL how to convert from clip space to pixels
+            __WEBPACK_IMPORTED_MODULE_0__globals__["a" /* gl */].viewport(0, 0, size[0], size[1]);
+            // Clear the canvas AND the depth buffer.
+            __WEBPACK_IMPORTED_MODULE_0__globals__["a" /* gl */].clearColor(1, 1, 1, 1); // clear to white
+            __WEBPACK_IMPORTED_MODULE_0__globals__["a" /* gl */].clear(__WEBPACK_IMPORTED_MODULE_0__globals__["a" /* gl */].COLOR_BUFFER_BIT | __WEBPACK_IMPORTED_MODULE_0__globals__["a" /* gl */].DEPTH_BUFFER_BIT);
+            aspect = __WEBPACK_IMPORTED_MODULE_0__globals__["a" /* gl */].canvas.width / __WEBPACK_IMPORTED_MODULE_0__globals__["a" /* gl */].canvas.height;
+            prog.draw(drawable);
+        }
         prog.setEyeRefUp(camera.controls.eye, camera.controls.center, camera.controls.up);
         prog.setTime(time);
-        prog.setSticky(sticky);
-        prog.setBounce(bounce);
         prog.setTrans(translation);
         prog.setMap(map);
-        for (let drawable of drawables) {
-            prog.draw(drawable);
+        if (pixels[2] == 255 && pixels[1] == 0 && pixels[0] == 0) {
+            return true;
+        }
+        else {
+            return false;
         }
     }
 }
@@ -16309,6 +16532,14 @@ class ShaderProgram {
         this.unifBounce = __WEBPACK_IMPORTED_MODULE_0__globals__["a" /* gl */].getUniformLocation(this.prog, "u_Bounce");
         this.unifTrans = __WEBPACK_IMPORTED_MODULE_0__globals__["a" /* gl */].getUniformLocation(this.prog, "u_Trans");
         this.unifMap = __WEBPACK_IMPORTED_MODULE_0__globals__["a" /* gl */].getUniformLocation(this.prog, "u_Map");
+        this.unifSampler1 = __WEBPACK_IMPORTED_MODULE_0__globals__["a" /* gl */].getUniformLocation(this.prog, "u_NoiseTex1");
+    }
+    // Bind the given Texture to the given texture unit
+    bindTexToUnit(handleName, tex, unit) {
+        this.use();
+        __WEBPACK_IMPORTED_MODULE_0__globals__["a" /* gl */].activeTexture(__WEBPACK_IMPORTED_MODULE_0__globals__["a" /* gl */].TEXTURE0 + unit);
+        tex.bindTex();
+        __WEBPACK_IMPORTED_MODULE_0__globals__["a" /* gl */].uniform1i(handleName, unit);
     }
     use() {
         if (activeProgram !== this.prog) {
@@ -16331,7 +16562,7 @@ class ShaderProgram {
     setDimensions(width, height) {
         this.use();
         if (this.unifDimensions !== -1) {
-            __WEBPACK_IMPORTED_MODULE_0__globals__["a" /* gl */].uniform2f(this.unifDimensions, width, height);
+            __WEBPACK_IMPORTED_MODULE_0__globals__["a" /* gl */].uniform2f(this.unifDimensions, 752, 582);
         }
     }
     setTime(t) {
@@ -16390,15 +16621,75 @@ class ShaderProgram {
 
 /***/ }),
 /* 68 */
-/***/ (function(module, exports) {
+/***/ (function(module, __webpack_exports__, __webpack_require__) {
 
-module.exports = "#version 300 es\nprecision highp float;\n\n// The vertex shader used to render the background of the scene\n\nin vec4 vs_Pos;\nout vec2 fs_Pos;\n\nvoid main() {\n  fs_Pos = vs_Pos.xy;\n  gl_Position = vs_Pos;\n}\n"
+"use strict";
+/* harmony import */ var __WEBPACK_IMPORTED_MODULE_0__globals__ = __webpack_require__(1);
+
+class Texture {
+    bindTex() {
+        __WEBPACK_IMPORTED_MODULE_0__globals__["a" /* gl */].bindTexture(__WEBPACK_IMPORTED_MODULE_0__globals__["a" /* gl */].TEXTURE_2D, this.texture);
+    }
+    handle() {
+        return this.texture;
+    }
+    isPowerOf2(value) {
+        return (value & (value - 1)) == 0;
+    }
+    constructor(imgSource, clampVert) {
+        this.texture = __WEBPACK_IMPORTED_MODULE_0__globals__["a" /* gl */].createTexture();
+        this.bindTex();
+        // create a white pixel to serve as placeholder
+        const formatSrc = __WEBPACK_IMPORTED_MODULE_0__globals__["a" /* gl */].RGBA;
+        const formatDst = __WEBPACK_IMPORTED_MODULE_0__globals__["a" /* gl */].RGBA;
+        const lvl = 0;
+        const phWidth = 1; // placeholder
+        const phHeight = 1;
+        const phImg = new Uint8Array([255, 255, 255, 255]);
+        const formatBit = __WEBPACK_IMPORTED_MODULE_0__globals__["a" /* gl */].UNSIGNED_BYTE; // TODO: HDR
+        __WEBPACK_IMPORTED_MODULE_0__globals__["a" /* gl */].texImage2D(__WEBPACK_IMPORTED_MODULE_0__globals__["a" /* gl */].TEXTURE_2D, lvl, formatDst, phWidth, phHeight, 0, formatSrc, formatBit, phImg);
+        // get a javascript image locally and load it. not instant but will auto-replace white pixel
+        const img = new Image();
+        if (clampVert == 0) {
+            img.onload = function () {
+                this.bindTex();
+                __WEBPACK_IMPORTED_MODULE_0__globals__["a" /* gl */].texImage2D(__WEBPACK_IMPORTED_MODULE_0__globals__["a" /* gl */].TEXTURE_2D, lvl, formatDst, img.width, img.height, 0, formatSrc, formatBit, img);
+                __WEBPACK_IMPORTED_MODULE_0__globals__["a" /* gl */].texParameteri(__WEBPACK_IMPORTED_MODULE_0__globals__["a" /* gl */].TEXTURE_2D, __WEBPACK_IMPORTED_MODULE_0__globals__["a" /* gl */].TEXTURE_WRAP_S, __WEBPACK_IMPORTED_MODULE_0__globals__["a" /* gl */].REPEAT);
+                __WEBPACK_IMPORTED_MODULE_0__globals__["a" /* gl */].texParameteri(__WEBPACK_IMPORTED_MODULE_0__globals__["a" /* gl */].TEXTURE_2D, __WEBPACK_IMPORTED_MODULE_0__globals__["a" /* gl */].TEXTURE_WRAP_T, __WEBPACK_IMPORTED_MODULE_0__globals__["a" /* gl */].REPEAT);
+                __WEBPACK_IMPORTED_MODULE_0__globals__["a" /* gl */].texParameteri(__WEBPACK_IMPORTED_MODULE_0__globals__["a" /* gl */].TEXTURE_2D, __WEBPACK_IMPORTED_MODULE_0__globals__["a" /* gl */].TEXTURE_MIN_FILTER, __WEBPACK_IMPORTED_MODULE_0__globals__["a" /* gl */].LINEAR);
+                __WEBPACK_IMPORTED_MODULE_0__globals__["a" /* gl */].texParameteri(__WEBPACK_IMPORTED_MODULE_0__globals__["a" /* gl */].TEXTURE_2D, __WEBPACK_IMPORTED_MODULE_0__globals__["a" /* gl */].TEXTURE_MAG_FILTER, __WEBPACK_IMPORTED_MODULE_0__globals__["a" /* gl */].LINEAR);
+            }.bind(this);
+        }
+        else {
+            img.onload = function () {
+                this.bindTex();
+                __WEBPACK_IMPORTED_MODULE_0__globals__["a" /* gl */].texImage2D(__WEBPACK_IMPORTED_MODULE_0__globals__["a" /* gl */].TEXTURE_2D, lvl, formatDst, img.width, img.height, 0, formatSrc, formatBit, img);
+                __WEBPACK_IMPORTED_MODULE_0__globals__["a" /* gl */].texParameteri(__WEBPACK_IMPORTED_MODULE_0__globals__["a" /* gl */].TEXTURE_2D, __WEBPACK_IMPORTED_MODULE_0__globals__["a" /* gl */].TEXTURE_WRAP_S, __WEBPACK_IMPORTED_MODULE_0__globals__["a" /* gl */].CLAMP_TO_EDGE);
+                __WEBPACK_IMPORTED_MODULE_0__globals__["a" /* gl */].texParameteri(__WEBPACK_IMPORTED_MODULE_0__globals__["a" /* gl */].TEXTURE_2D, __WEBPACK_IMPORTED_MODULE_0__globals__["a" /* gl */].TEXTURE_WRAP_T, __WEBPACK_IMPORTED_MODULE_0__globals__["a" /* gl */].CLAMP_TO_EDGE);
+                __WEBPACK_IMPORTED_MODULE_0__globals__["a" /* gl */].texParameteri(__WEBPACK_IMPORTED_MODULE_0__globals__["a" /* gl */].TEXTURE_2D, __WEBPACK_IMPORTED_MODULE_0__globals__["a" /* gl */].TEXTURE_MIN_FILTER, __WEBPACK_IMPORTED_MODULE_0__globals__["a" /* gl */].LINEAR);
+                __WEBPACK_IMPORTED_MODULE_0__globals__["a" /* gl */].texParameteri(__WEBPACK_IMPORTED_MODULE_0__globals__["a" /* gl */].TEXTURE_2D, __WEBPACK_IMPORTED_MODULE_0__globals__["a" /* gl */].TEXTURE_MAG_FILTER, __WEBPACK_IMPORTED_MODULE_0__globals__["a" /* gl */].LINEAR);
+            }.bind(this);
+        }
+        img.src = imgSource; // load the image
+    }
+}
+/* unused harmony export Texture */
+
+;
+/* harmony default export */ __webpack_exports__["a"] = (Texture);
+
 
 /***/ }),
 /* 69 */
 /***/ (function(module, exports) {
 
-module.exports = "#version 300 es\nprecision highp float;\n\nuniform vec3 u_Eye, u_Ref, u_Up;\nuniform vec2 u_Dimensions;\nuniform float u_Time;\nuniform float u_Stickiness;\nuniform float u_Bounce;\nuniform vec2 u_Trans;\nuniform float u_Map;\n\n\nin vec2 fs_Pos;\nout vec4 out_Col;\n\nfloat noise( vec3 p , vec3 seed) {\n  return fract(sin(dot(p + seed, vec3(987.654, 123.456, 531.975))) * 85734.3545);\n}\n\n// based off of http://jamie-wong.com/2016/07/15/ray-marching-signed-distance-functions/\nfloat intersectSDF(float distA, float distB) {\n    return max(distA, distB);\n}\n\nfloat unionSDF(float distA, float distB) {\n    return min(distA, distB);\n}\n\nfloat differenceSDF(float distA, float distB) {\n    return max(distA, -distB);\n}\n\n// based off of http://iquilezles.org/www/articles/distfunctions/distfunctions.htm\nfloat opSmoothUnion( float d1, float d2, float k ) {\n    float h = clamp( 0.5 + 0.5*(d2-d1)/k, 0.0, 1.0 );\n    return mix( d2, d1, h ) - k*h*(1.0-h); \n}\n\nfloat opSmoothIntersection( float d1, float d2, float k ) {\n    float h = clamp( 0.5 - 0.5*(d2-d1)/k, 0.0, 1.0 );\n    return mix( d2, d1, h ) + k*h*(1.0-h); \n}\n\n\nmat4 rotateX(float theta) {\n    float c = cos(radians(theta));\n    float s = sin(radians(theta));\n\n    return mat4(\n        vec4(1, 0, 0, 0),\n        vec4(0, c, s, 0),\n        vec4(0, -s, c, 0),\n        vec4(0, 0, 0, 1)\n    );\n}\n\nmat4 rotateZ(float theta) {\n    float c = cos(radians(theta));\n    float s = sin(radians(theta));\n\n    return mat4(\n        vec4(c, s, 0, 0),\n        vec4(-s, c, 0, 0),\n        vec4(0, 0, 1, 0),\n        vec4(0, 0, 0, 1)\n    );\n}\n\nvec3 getRayDirection() {\n\n  float fovy = 45.0;\n  vec3 look = normalize(u_Ref - u_Eye);\n  vec3 right = normalize(cross(look, u_Up));\n  vec3 up = cross(right, look);\n\n  float tan_fovy = tan(radians(fovy / 2.0));\n  float len = length(u_Ref - u_Eye);\n  float aspect = u_Dimensions.x / float(u_Dimensions.y);\n\n  vec3 v = up * len * tan_fovy;\n  vec3 h = right * len * aspect * tan_fovy;\n\n  vec3 p = u_Ref + fs_Pos.x * h + fs_Pos.y * v;\n  vec3 dir = normalize(p - u_Eye);\n\n  return dir;\n\n}\n\nfloat sdBox( vec3 p, vec3 b )\n{\n  vec3 d = abs(p) - b;\n  return length(max(d,0.0))\n         + min(max(d.x,max(d.y,d.z)),0.0); // remove this line for an only partially signed sdf \n}\n\nfloat sdEllipsoid( in vec3 p, in vec3 r )\n{\n    float k0 = length(p/r);\n    float k1 = length(p/(r*r));\n    return k0*(k0-1.0)/k1;\n}\n\nfloat sdTorus( vec3 p, vec2 t )\n{\n  vec2 q = vec2(length(p.xz)-t.x,p.y);\n  return length(q)-t.y;\n}\n\nfloat sdSphere( vec3 p, float s )\n{\n  return length(p)-s;\n}\n\nfloat sdCappedCylinder( vec3 p, vec2 h )\n{\n  vec2 d = abs(vec2(length(p.xz),p.y)) - h;\n  return min(max(d.x,d.y),0.0) + length(max(d,0.0));\n}\n\nvec2 path(float t) {\n  float a = 3.0 *sin(t * .1 + 1.5) / (1.0 + noise(vec3(0.0, 0.0, t), \n                                                vec3(0.0, 0.0,0.0))); \n  float b = sin(t*.2) / (4.0 + noise(vec3(0.0, 0.0, t), \n                                     vec3(0.0, 0.0,0.0)));\n  return vec2(2.*a, a*b);\n}\n\n\nfloat g = 0.;\nfloat sceneSDF(vec3 p) {\n\n  if (u_Map == 0.0) {\n      p += vec3(sin(p.z / (20.0)) * 3.0, sin(p.z / 20.0) * 3.0, 0.0);\n      vec3 ringPoint = (inverse(rotateX(90.0)) * vec4(p, 1.0)).xyz;\n      vec3 c = vec3(0.0, 7.0, 0.0);\n      vec3 q = mod(ringPoint,c)-0.5*c;\n      //q += vec3(0.0, 0.0, sin(p.x) + 1.0);\n      //q += vec3(0.0, 0.0, noise(vec3(0, 0, u_Time / 20.0), vec3(0, 0, 0)));\n      return sdTorus(q, vec2(4.0, 0.15));\n  }\n  else {\n    p.xy -= path(p.z);\n    float d = -length(p.xy) + 4.;// tunnel (inverted cylinder)\n    g += .015 / (.01 + d * d);\n    return d;\n  }\n\n}\n\nvec3 estimateNormal(vec3 p) {\n  float EPSILON = 0.001;\n    return normalize(vec3(\n        sceneSDF(vec3(p.x + EPSILON, p.y, p.z)) - sceneSDF(vec3(p.x - EPSILON, p.y, p.z)),\n        sceneSDF(vec3(p.x, p.y + EPSILON, p.z)) - sceneSDF(vec3(p.x, p.y - EPSILON, p.z)),\n        sceneSDF(vec3(p.x, p.y, p.z  + EPSILON)) - sceneSDF(vec3(p.x, p.y, p.z - EPSILON))\n    ));\n}\n\n// returns color\nvec3 rayMarch(vec3 dir) {\n  float time = u_Time / 1.5;\n  vec3 eye = u_Eye + vec3(u_Trans.x / 8.0, u_Trans.y / 8.0, time);\n  //vec3 eye = u_Eye;\n  //vec3 eye = u_Eye + vec3(u_Trans.x / 100.0, u_Trans.y / 100.0, 0);\n  \n  float depth = 0.0; \n  int MAX_MARCHING_STEPS = 1000;\n  float EPSILON = 0.0001;\n  float MAX_TRACE_DISTANCE = 1000.0;\n\n  vec4 fragCoord = gl_FragCoord;\n\n  // vignette\n  vec2 centerCoords = vec2(u_Dimensions.x / 2.0,\n                       u_Dimensions.y / 2.0);\n  float maxDistance = sqrt(pow(centerCoords.x, 2.0) +\n                           pow(centerCoords.y, 2.0));\n  float shortX = fragCoord.x - centerCoords.x;\n  float shortY = fragCoord.y - centerCoords.y;\n  float currentDistance = pow(shortX, 2.0) / pow(u_Dimensions.x, 2.0) +\n                          pow(shortY, 2.0) / pow(u_Dimensions.y, 2.0);\n\n  float intensity = 3.8; // how intense the vignette is\n  float vignette = currentDistance * intensity;\n  float intensity2 = 5.3; // how intense the vignette is\n  float vignette2 = currentDistance * intensity2;\n  vec3 vignetteColor = mix(vec3(1.0), vec3(0, 0, 0), vignette);\n  vec3 vignetteColor2 = mix(vec3(0.0), vec3(1.0, 0.9, 0.7), (1.0 - vignette2));\n\n\n    // center crosshair\n  if (fragCoord.x < centerCoords.x + 12.0 &&\n      fragCoord.x > centerCoords.x - 12.0 &&\n      fragCoord.y < centerCoords.y + 0.8 &&\n      fragCoord.y > centerCoords.y - 0.8) {\n    return vec3(1.0, 1.0, 1.0);\n  }\n  if (fragCoord.x < centerCoords.x + 0.8 &&\n    fragCoord.x > centerCoords.x - 0.8 &&\n    fragCoord.y < centerCoords.y + 12.0 &&\n    fragCoord.y > centerCoords.y - 12.0) {\n  return vec3(1.0, 1.0, 1.0);\n  }\n\n\n    // ***************************** MAP #1 ****************************************\n  if (u_Map == 0.0) {\n    // INTERSECTION TESTING\n      if (sceneSDF(eye) < EPSILON) {\n\n        return vec3(0, 0, 1);\n      }\n      for (int i = 0; i < MAX_MARCHING_STEPS; i++) {\n        vec3 point = eye + depth * dir;\n\n          float dist = sceneSDF(point);\n          // we are inside the sphere!\n          if (dist < EPSILON) {\n            // distance fog\n            float dist = point.z - time;\n            const vec3 fogColor = vec3(0.0, 0.0,0.1);\n            float fogFactor = 0.;\n            fogFactor = (70. - dist)/(70.0 - 30.0);\n            fogFactor = clamp( fogFactor, 0.0, 1.0 );\n    \n                     // gold shading\n                vec3 diffuseColor = vec3(221, 82, 22) / 255.;\n                float diffuseTerm = dot(normalize(vec3(-1, -1, -1) * estimateNormal(point)), normalize(u_Ref - u_Eye));\n                diffuseTerm = clamp(diffuseTerm, 0.0, 1.0);\n                float ambientTerm = 0.5;\n                float PI = 3.14159265358979323846;\n    \n                // vec3 color = vec3(0.5 + 0.5 * cos(2. * PI * (1.0 * diffuseTerm + 0.00)),\n                //                   0.5 + 0.5 * cos(2. * PI * (0.7 * diffuseTerm + 0.15)),\n                //                   0.5 + 0.5 * cos(2. * PI * (0.4 * diffuseTerm + 0.20)));\n                vec3 color = vec3(cos(u_Time / 180.0) + 1.5, \n                                  sin(u_Time / 200.0) + 1.5, \n                                  cos(u_Time / 220.0) + 1.5);\n                color = mix(fogColor, color, fogFactor);\n    \n                return color * vignetteColor;\n          }\n\n        // keep going!\n        depth += dist;\n\n         // we went too far ... we should stop\n         if (depth >= MAX_TRACE_DISTANCE) {\n           return vec3(0, 0, 0);\n         }\n\n      }\n\n  }\n\n // ******************* MAP #2 ****************************\n  else {\n\n      vec3 ro = vec3(u_Trans.x / 8.0, u_Trans.y / 8.0, -5. + time / 2.0);\n      vec3 p = floor(ro) + .5; \n      vec3 mask; \n      vec3 drd = 1.0 / abs(dir);\n      dir = sign(dir);\n      vec3 side = drd * (dir * (p - ro) + .5);\n    \n      float t = 0., ri = 0.;\n    \n      // INTERSECTION\n      if (sceneSDF(ro) < EPSILON) {\n        return vec3(0, 0, 1);\n      }\n      for (float i = 0.0; i < 1.0; i+= .01) {\n          float dist = sceneSDF(p);\n\n          if (dist < EPSILON) {\n          \n              break;\n          }\n          mask = step(side, side.yzx) * step(side, side.zxy);\n          // minimum value between x,y,z, output 0 or 1\n    \n          side += drd * mask;\n          p += dir * mask;\n      }\n    \n      t = length(p - ro);\n  \n      vec3 c = vec3(1) * length(mask * vec3(1., .5, .3));\n      c = mix(vec3(.8, .2, .7), vec3(.2, .1, .2), c);\n      c += g * .4;\n      c.g += sin(u_Time)*.2 + sin(p.z*.5 - u_Time * .1);// red rings\n      c = mix(c, vec3(.2, .1, .2), 1. - exp(-.001*t*t));// fog\n      return c;\n  }\n}\n\nvoid main() {\n\n  vec3 dir = getRayDirection();\n  //out_Col = vec4(0.5 * (dir + vec3(1.0, 1.0, 1.0)), 1.0);\n  out_Col = vec4(rayMarch(dir), 1.0);\n}\n"
+module.exports = "#version 300 es\nprecision highp float;\n\n// The vertex shader used to render the background of the scene\n\nin vec4 vs_Pos;\nout vec2 fs_Pos;\n\nvoid main() {\n  fs_Pos = vs_Pos.xy;\n  gl_Position = vs_Pos;\n}\n"
+
+/***/ }),
+/* 70 */
+/***/ (function(module, exports) {
+
+module.exports = "#version 300 es\nprecision highp float;\n\nuniform vec3 u_Eye, u_Ref, u_Up;\nuniform vec2 u_Dimensions;\nuniform float u_Time;\nuniform float u_Stickiness;\nuniform float u_Bounce;\nuniform vec2 u_Trans;\nuniform float u_Map;\nuniform sampler2D u_NoiseTex1;\n\n\nin vec2 fs_Pos;\nout vec4 out_Col;\n\n\n// *******************************\n// *******************************\n\n\n// NOTES:\n// MAPS ARE BASED OFF OF\n// SHADERS FROM SHADERTOY: \n\n// https://www.shadertoy.com/view/4slyRs\n// https://www.shadertoy.com/view/MscBRs\n\n\n// *******************************\n// *******************************\n\n\n\n\n\n\n\n\n// ============ NUMBERS FOR CORRIDOR MAP ==========\n\nfloat EPSILON = 0.002;\nvec2 twist = vec2(2.0,2.0);\nfloat planesDistance = 0.3;\nvec4 bumpMapParams1 = vec4(2.0,7.0,0.01,-0.01);\nvec4 bumpMapParams2 = vec4(2.0,3.0,-0.01,0.01);\nvec4 heightMapParams = vec4(3.0,1.0,0.0,0.01);\nvec4 heightInfluence = vec4(-0.025,-0.05,0.8,1.8);\nfloat fogDensity = 0.2;\nfloat fogDistance = 0.1;\nvec3 groundColor1 = vec3(0.2,0.3,0.3);\nvec3 groundColor2 = vec3(0.4,0.8,0.4);\nvec3 columnColors = vec3(0.9,0.3,0.3);\nvec4 ambient = vec4(0.2,0.3,0.4,0.0);\nvec3 lightColor = vec3(0.4,0.7,0.7);\nvec4 fogColor = vec4(0.0,0.1,0.5,1.0);\nvec3 rimColor = vec3(1.0,0.75,0.75);\n\nfloat pi = 3.14159265359;\n\nmat2 rot(float a) \n{\n  vec2 s = sin(vec2(a, a + pi/2.0));\n  return mat2(s.y,s.x,-s.x,s.y);\n}\n\nfloat smin( float a, float b, float k )\n{\n  float h = clamp( 0.5+0.5*(b-a)/k, 0.0, 1.0 );\n  return mix( b, a, h ) - k*h*(1.0-h);\n}\n\nfloat sphere(vec3 pos, float radius, vec3 scale)\n{\n  return length(pos*scale)-radius;\n}\n\nfloat heightmap(vec2 uv)\n{\n  return heightMapParams.x*texture(u_NoiseTex1, (uv + u_Time * 0.01*heightMapParams.zw)*heightMapParams.y).x;\n    //return 0.0;\n  }\n\n  float bumpmap(vec2 uv)\n  {\n    float b1 = bumpMapParams1.x*(1.0 - texture(u_NoiseTex1, (uv + u_Time * 0.005*bumpMapParams1.zw)*bumpMapParams1.y).x);\n    float b2 = bumpMapParams2.x*(1.0-texture(u_NoiseTex1, (uv + u_Time* 0.005 *bumpMapParams2.zw)*bumpMapParams2.x).x);\n    return b1+b2;\n    //return 0.0;\n  }\n\n  float distfunc(vec3 pos)\n  {\n    float time = u_Time / 70.0;\n    vec3 p2 = pos;\n    p2.x += sin(p2.z*3.0 + p2.y*5.0)*0.15;\n    p2.xy *= rot(floor(p2.z*2.0)*twist.y);\n    pos.xy *= rot(pos.z*twist.x);\n    \n    float h = heightmap(pos.xz)*heightInfluence.x;\n    \n    vec3 columnsrep = vec3(0.75,1.0,0.5);\n    vec3 reppos = (mod(p2 + vec3(time*0.01 + sin(pos.z*0.5),0.0,0.0),columnsrep)-0.5*columnsrep);\n    \n    float columnsScaleX = 1.0 + sin(p2.y*20.0*sin(p2.z) + time*5.0 + pos.z)*0.15;\n    float columnsScaleY = (sin(time + pos.z*4.0)*0.5+0.5);\n    \n    float columns = sphere(vec3(reppos.x, pos.y+0.25, reppos.z), 0.035, vec3(columnsScaleX,columnsScaleY,columnsScaleX));\n    float corridor = planesDistance - abs(pos.y) + h;\n    float d = smin(corridor, columns, 0.25); \n\n    return d;\n  }\n\n//Taken from https://www.shadertoy.com/view/Xds3zN\nmat3 setCamera( in vec3 ro, in vec3 ta, float cr )\n{\n  vec3 cw = normalize(ta-ro);\n  vec3 cp = vec3(sin(cr), cos(cr),0.0);\n  vec3 cu = normalize( cross(cw,cp) );\n  vec3 cv = normalize( cross(cu,cw) );\n  return mat3( cu, cv, cw );\n}\n\nvec3 calculateNormals(vec3 pos)\n{\n  vec2 eps = vec2(0.0, EPSILON*1.0);\n  vec3 n = normalize(vec3(\n    distfunc(pos + eps.yxx) - distfunc(pos - eps.yxx),\n    distfunc(pos + eps.xyx) - distfunc(pos - eps.xyx),\n    distfunc(pos + eps.xxy) - distfunc(pos - eps.xxy)));\n\n  return n;\n}\n\n//Taken from https://www.shadertoy.com/view/XlXXWj\nvec3 doBumpMap(vec2 uv, vec3 nor, float bumpfactor)\n{\n\n  const float eps = 0.001;\n  float ref = bumpmap(uv); \n\n  vec3 grad = vec3(bumpmap(vec2(uv.x-eps, uv.y))-ref, 0.0, bumpmap(vec2(uv.x, uv.y-eps))-ref); \n\n  grad -= nor*dot(nor, grad);          \n\n  return normalize( nor + grad*bumpfactor );\n}\n\n// ==================================================\n\n\nfloat noise( vec3 p , vec3 seed) {\n  return fract(sin(dot(p + seed, vec3(987.654, 123.456, 531.975))) * 85734.3545);\n}\n\n// based off of http://jamie-wong.com/2016/07/15/ray-marching-signed-distance-functions/\nfloat intersectSDF(float distA, float distB) {\n  return max(distA, distB);\n}\n\nfloat unionSDF(float distA, float distB) {\n  return min(distA, distB);\n}\n\nfloat differenceSDF(float distA, float distB) {\n  return max(distA, -distB);\n}\n\n// based off of http://iquilezles.org/www/articles/distfunctions/distfunctions.htm\nfloat opSmoothUnion( float d1, float d2, float k ) {\n  float h = clamp( 0.5 + 0.5*(d2-d1)/k, 0.0, 1.0 );\n  return mix( d2, d1, h ) - k*h*(1.0-h); \n}\n\nfloat opSmoothIntersection( float d1, float d2, float k ) {\n  float h = clamp( 0.5 - 0.5*(d2-d1)/k, 0.0, 1.0 );\n  return mix( d2, d1, h ) + k*h*(1.0-h); \n}\n\n\nmat4 rotateX(float theta) {\n  float c = cos(radians(theta));\n  float s = sin(radians(theta));\n\n  return mat4(\n    vec4(1, 0, 0, 0),\n    vec4(0, c, s, 0),\n    vec4(0, -s, c, 0),\n    vec4(0, 0, 0, 1)\n    );\n}\n\nmat4 rotateZ(float theta) {\n  float c = cos(radians(theta));\n  float s = sin(radians(theta));\n\n  return mat4(\n    vec4(c, s, 0, 0),\n    vec4(-s, c, 0, 0),\n    vec4(0, 0, 1, 0),\n    vec4(0, 0, 0, 1)\n    );\n}\n\nvec3 getRayDirection() {\n\n  float fovy = 45.0;\n  vec3 look = normalize(u_Ref - u_Eye);\n  vec3 right = normalize(cross(look, u_Up));\n  vec3 up = cross(right, look);\n\n  float tan_fovy = tan(radians(fovy / 2.0));\n  float len = length(u_Ref - u_Eye);\n  float aspect = u_Dimensions.x / float(u_Dimensions.y);\n\n  vec3 v = up * len * tan_fovy;\n  vec3 h = right * len * aspect * tan_fovy;\n\n  vec3 p = u_Ref + fs_Pos.x * h + fs_Pos.y * v;\n  vec3 dir = normalize(p - u_Eye);\n\n  return dir;\n\n}\n\nfloat sdEllipsoid( in vec3 p, in vec3 r )\n{\n  float k0 = length(p/r);\n  float k1 = length(p/(r*r));\n  return k0*(k0-1.0)/k1;\n}\n\nfloat sdTorus( vec3 p, vec2 t )\n{\n  vec2 q = vec2(length(p.xz)-t.x,p.y);\n  return length(q)-t.y;\n}\n\nfloat sdSphere( vec3 p, float s )\n{\n  return length(p)-s;\n}\n\nfloat sdCappedCylinder( vec3 p, vec2 h )\n{\n  vec2 d = abs(vec2(length(p.xz),p.y)) - h;\n  return min(max(d.x,d.y),0.0) + length(max(d,0.0));\n}\n\nvec2 path(float t) {\n  float a = 3.0 *sin(t * .1) / (1.0 + noise(vec3(0.0, 0.0, t), \n    vec3(0.0, 0.0,0.0))); \n  float b = sin(t*.2) / (4.0 + noise(vec3(0.0, 0.0, t), \n   vec3(0.0, 0.0,0.0)));\n  return vec2(2.*a, a*b);\n}\n\n\nfloat g = 0.;\nfloat sceneSDF(vec3 p) {\n  //float noiseValue = noise(vec3(floor(u_Time / 30.0), 0.0, 0.0), vec3(0.0, 0.0, 0.0));\n\n  if (u_Map == 0.0) {\n      // path\n      p += vec3(sin(p.z / (20.0)) * 3.0 + 5.0* sin(u_Time / 30.0) * sin(u_Time / 60.0), \n        sin(p.z / 20.0) * 3.0 + 5.0* sin(u_Time / 30.0) * sin(u_Time / 60.0), \n        0.0);\n      //p.xy += path(p.z);\n      vec3 ringPoint = (inverse(rotateX(90.0)) * vec4(p, 1.0)).xyz;\n      \n      // ring repetitions\n      vec3 c = vec3(0.0, 4.0, 0.0);\n      vec3 q = mod(ringPoint,c)-0.5*c;\n\n      // ring deformations\n      q += vec3(sin(p.y * sin((u_Time + 47.0) / 50.0)) + 1.0, 0.0, \n        sin(p.x * cos(u_Time / 38.0)) + 1.0);\n      float d = sdTorus(q, vec2(8.0, 0.35));\n      return d;\n    }\n    else if (u_Map == 2.0) {\n      p.xy -= path(p.z);\n    float d = -length(p.xy) + 4.;// tunnel (inverted cylinder)\n    g += .015 / (.01 + d * d);\n    return d;\n  }\n  else {\n    p.xy -= path(p.z);\n    p += vec3(sin(p.z / (20.0)) * 3.0 + 0.6* sin(5.0* sin(u_Time / 80.0)) * cos(u_Time / 60.0), \n      sin(p.z / (20.0)) * (3.0 + cos(u_Time / 300.0)) + 1.0 * sin(4.0* cos(u_Time / 110.0)) * sin(u_Time / 160.0) * cos(u_Time / 40.0), \n      0.0);\n    float d = -length(p.xy) + 6.;// tunnel (inverted cylinder)\n    g += .015 / (.01 + d * d);\n    return d;\n  }\n\n}\n\nvec3 estimateNormal(vec3 p) {\n  float EPSILON = 0.001;\n  return normalize(vec3(\n    sceneSDF(vec3(p.x + EPSILON, p.y, p.z)) - sceneSDF(vec3(p.x - EPSILON, p.y, p.z)),\n    sceneSDF(vec3(p.x, p.y + EPSILON, p.z)) - sceneSDF(vec3(p.x, p.y - EPSILON, p.z)),\n    sceneSDF(vec3(p.x, p.y, p.z  + EPSILON)) - sceneSDF(vec3(p.x, p.y, p.z - EPSILON))\n    ));\n}\n\n// returns color\nvec3 rayMarch(vec3 dir) {\n  float time = u_Time / 1.0;\n  vec3 eye = u_Eye + vec3(u_Trans.x / 4.0, u_Trans.y / 4.0, time );\n  //vec3 eye = u_Eye;\n  //vec3 eye = u_Eye + vec3(u_Trans.x / 100.0, u_Trans.y / 100.0, 0);\n  \n  float depth = 0.0; \n  int MAX_MARCHING_STEPS = 1000;\n  float EPSILON = 0.0001;\n  float MAX_TRACE_DISTANCE = 1000.0;\n\n  vec4 fragCoord = gl_FragCoord;\n\n  // vignette\n  vec2 centerCoords = vec2(u_Dimensions.x / 2.0,\n   u_Dimensions.y / 2.0);\n  float maxDistance = sqrt(pow(centerCoords.x, 2.0) +\n   pow(centerCoords.y, 2.0));\n  float shortX = fragCoord.x - centerCoords.x;\n  float shortY = fragCoord.y - centerCoords.y;\n  float currentDistance = pow(shortX, 2.0) / pow(u_Dimensions.x, 2.0) +\n  pow(shortY, 2.0) / pow(u_Dimensions.y, 2.0);\n\n  float intensity = 3.8; // how intense the vignette is\n  float vignette = currentDistance * intensity;\n  float intensity2 = 5.3; // how intense the vignette is\n  float vignette2 = currentDistance * intensity2;\n  vec3 vignetteColor = mix(vec3(1.0), vec3(0, 0, 0), vignette);\n  vec3 vignetteColor2 = mix(vec3(0.0), vec3(1.0, 0.9, 0.7), (1.0 - vignette2));\n\n\n    // center crosshair\n    if (fragCoord.x < centerCoords.x + 12.0 &&\n      fragCoord.x > centerCoords.x - 12.0 &&\n      fragCoord.y < centerCoords.y + 0.8 &&\n      fragCoord.y > centerCoords.y - 0.8) {\n      return vec3(1.0, 1.0, 1.0);\n  }\n  if (fragCoord.x < centerCoords.x + 0.8 &&\n    fragCoord.x > centerCoords.x - 0.8 &&\n    fragCoord.y < centerCoords.y + 12.0 &&\n    fragCoord.y > centerCoords.y - 12.0) {\n    return vec3(1.0, 1.0, 1.0);\n}\n\n\n    // ***************************** MAP #1 ****************************************\n    if (u_Map == 0.0) {\n    // INTERSECTION TESTING\n    vec3 eye2 = eye;\n    eye2.z += 0.05;\n    if (sceneSDF(eye2) < 0.4) {\n\n      return vec3(0, 0, 1);\n    }\n    for (int i = 0; i < MAX_MARCHING_STEPS; i++) {\n      vec3 point = eye + depth * dir;\n      float d = point.z - time;\n      g = d;\n\n      float dist = sceneSDF(point);\n          // we are inside the sphere!\n          if (dist < EPSILON) {\n            // distance fog\n            const vec3 fogColor = vec3(0.0, 0.0,0.1);\n            float fogFactor = 0.;\n            fogFactor = (70. - d)/(70.0 - 30.0);\n            fogFactor = clamp( fogFactor, 0.0, 1.0 );\n\n                     // gold shading\n                     vec3 diffuseColor = vec3(221, 82, 22) / 255.;\n                     float diffuseTerm = dot(normalize(vec3(-1, -1, -1) * estimateNormal(point)), normalize(u_Ref - u_Eye));\n                     diffuseTerm = clamp(diffuseTerm, 0.0, 1.0);\n                     float ambientTerm = 0.5;\n                     float PI = 3.14159265358979323846;\n\n                // vec3 color = vec3(0.5 + 0.5 * cos(2. * PI * (1.0 * diffuseTerm + 0.00)),\n                //                   0.5 + 0.5 * cos(2. * PI * (0.7 * diffuseTerm + 0.15)),\n                //                   0.5 + 0.5 * cos(2. * PI * (0.4 * diffuseTerm + 0.20)));\n                vec3 color = vec3(cos(u_Time / 180.0) + 1.5, \n                  sin(u_Time / 200.0) + 1.5, \n                  cos(u_Time / 220.0) + 1.5);\n                color = mix(fogColor, color, fogFactor);\n\n                return color * vignetteColor;\n              }\n\n        // keep going!\n        depth += dist;\n\n         // we went too far ... we should stop\n         if (depth >= MAX_TRACE_DISTANCE) {\n           return vec3(0, 0, 0);\n         }\n\n       }\n\n     }\n\n  //============================\n  else if (u_Map == 2.0) {\n\n    float EPSILON = 0.02;\n    float planesDistance = 0.2;\n    vec4 bumpMapParams1 = vec4(2.0,7.0,0.01,-0.01);\n    vec4 bumpMapParams2 = vec4(2.0,3.0,-0.01,0.01);\n    vec4 heightMapParams = vec4(3.0,1.0,0.0,0.01);\n    vec4 heightInfluence = vec4(-0.025,-0.05,0.8,1.8);\n    float fogDensity = 0.2;\n    float fogDistance = 0.0;\n    vec3 groundColor1 = vec3(0.2,0.3,0.3);\n    vec3 groundColor2 = vec3(0.4,0.8,0.4);\n    vec3 columnColors = vec3(0.9,0.3,0.3);\n    vec4 ambient = vec4(0.2,0.3,0.4,0.0);\n    vec3 lightColor = vec3(0.4,0.7,0.7);\n    vec4 fogColor = vec4(0.0,0.1,0.5,1.0);\n    vec3 rimColor = vec3(1.0,0.75,0.75);\n\n    float pi = 3.14159265359;\n    eye = u_Eye + vec3(u_Trans.x / 68.0, u_Trans.y / 68.0, time / 30.0);\n\n    const int MAX_ITER = 50;\n    const float MAX_DIST = 1000.0;\n    \n    float totalDist = 0.0;\n    float totalDist2 = 0.0;\n    vec3 pos = eye;\n    float dist = EPSILON;\n    vec3 col = vec3(0.0);\n    float glow = 3.0;\n    \n    for(int j = 0; j < MAX_ITER; j++)\n    {\n      dist = distfunc(pos);\n      totalDist = totalDist + dist;\n      pos += dist*dir;\n      if (distfunc(eye + vec3(0, 0, 0.1)) < 0.03) {\n        return vec3(0, 0, 1);\n      }\n\n      if(dist < EPSILON || totalDist > MAX_DIST)\n      {\n        vec2 uv = pos.xy * rot(pos.z*twist.x);\n        float h = heightmap(vec2(uv.x, pos.z));\n        vec3 n = calculateNormals(pos);\n        vec3 bump = doBumpMap(vec2(uv.x, pos.z), n, 3.0);\n        float m = smoothstep(-0.15,0.2, planesDistance - abs(uv.y) + h*heightInfluence.y + sin(u_Time)*0.01);\n        vec3 color = mix(mix(groundColor1, groundColor2, smoothstep(heightInfluence.z,heightInfluence.w,h)), columnColors, m);\n        float fog = dist*fogDensity-fogDistance;\n        float heightfog = pos.y;\n        float rim = (1.0-max(0.0, dot(-normalize(dir), bump)));\n        vec3 lightPos = pos - (eye + vec3(0.0,0.0,1.0));\n        vec3 lightDir = -normalize(lightPos);\n        float lightdist = length(lightPos);\n        float atten = 1.0 / (1.0 + lightdist*lightdist*3.0);\n        float light = max(0.0, dot(lightDir, bump));\n        vec3 r = reflect(normalize(dir), bump);\n        float spec = clamp (dot (r, lightDir),0.0,1.0);\n        float specpow = pow(spec,20.0);\n        vec3 c = color*(ambient.xyz + mix(rim*rim*rim, rim*0.35+0.65, m)*rimColor + lightColor*(light*atten*2.0 + specpow*1.5));\n        vec4 res = mix(vec4(c, rim), fogColor, clamp(fog+heightfog,0.0,1.0));\n\n        vec3 finalcolor = vec3(res);\n        if (finalcolor == vec3(0.0, 0.0, 0.0)) {\n          return vec3(1.0, 0.0, 0.0);\n        }\n\n        return vec3(res);\n      //return vec3(1, 0, 0);\n    }\n  } \n}\n\n // ******************* MAP #2 ****************************\n else {\n\n  vec3 ro = vec3(u_Trans.x / 2.2, u_Trans.y / 2.2, time / 1.6);\n  vec3 p = floor(ro) + .5; \n  vec3 mask; \n\n\n  vec3 drd = 1.0 / abs(dir);\n  dir = sign(dir);\n  vec3 side = drd * (dir * (p - ro) + .5);\n\n  float t = 0., ri = 0.;\n\n  vec3 dir2 = vec3(0, 0, 1);\n  vec3 drd2 = 1.0 / abs(dir2);\n  dir2 = sign(dir2);\n  vec3 side2 = drd2 * (dir2 * (p - ro) + .5);\n  float t2 = 0., ri2 = 0.;\n        //INTERSECTION\n        if (sceneSDF(ro) < 0.0003) {\n          return vec3(0, 0, 1);\n        }\n\n        for (float i = 0.0; i < 1.0; i+= .01) {\n          float dist = sceneSDF(p);\n\n          if (dist < EPSILON) {\n\n            break;\n          }\n          mask = step(side, side.yzx) * step(side, side.zxy);\n        //mask2 = step(side2, side2.yzx) * step(side2, side2.zxy);\n          // minimum value between x,y,z, output 0 or 1\n\n          side += drd * mask;\n          p += dir * mask;\n        }\n\n        t = length(p - ro);\n\n        vec3 c = vec3(1) * length(mask * vec3(1., .5, .3));\n        c = mix(vec3(.8, .2, .7), vec3(.2, .1, .2), c);\n        c += g * .4;\n        c.g += sin(u_Time)*.2 + sin(p.z*.5 - u_Time * .1);// red rings\n        c = mix(c, vec3(.2, .1, .2), 1. - exp(-.001*t*t));// fog\n        return c;\n      }\n    }\n\n    void main() {\n\n      vec3 dir = getRayDirection();\n  //out_Col = vec4(0.5 * (dir + vec3(1.0, 1.0, 1.0)), 1.0);\n  \n  vec3 color = rayMarch(dir);\n  if (u_Time < 0.2) {\n    out_Col = vec4(color * 0.3, 1.0);\n  }\n  else {\n    out_Col = vec4(color, 1.0);\n  }\n}\n"
 
 /***/ })
 /******/ ]);

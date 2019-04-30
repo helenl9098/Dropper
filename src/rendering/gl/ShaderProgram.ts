@@ -1,6 +1,7 @@
 import {vec2, vec3, vec4, mat4} from 'gl-matrix';
 import Drawable from './Drawable';
 import {gl} from '../../globals';
+import Texture from './Texture';
 
 var activeProgram: WebGLProgram = null;
 
@@ -33,9 +34,13 @@ class ShaderProgram {
   unifBounce : WebGLUniformLocation;
   unifTrans : WebGLUniformLocation;
   unifMap: WebGLUniformLocation;
+  unifSampler1: WebGLUniformLocation;
 
   constructor(shaders: Array<Shader>) {
+
     this.prog = gl.createProgram();
+
+
 
     for (let shader of shaders) {
       gl.attachShader(this.prog, shader.shader);
@@ -55,6 +60,15 @@ class ShaderProgram {
     this.unifBounce = gl.getUniformLocation(this.prog, "u_Bounce");
     this.unifTrans = gl.getUniformLocation(this.prog, "u_Trans");
     this.unifMap = gl.getUniformLocation(this.prog, "u_Map");
+    this.unifSampler1   = gl.getUniformLocation(this.prog, "u_NoiseTex1");
+  }
+
+    // Bind the given Texture to the given texture unit
+  bindTexToUnit(handleName: WebGLUniformLocation, tex: Texture, unit: number) {
+    this.use();
+    gl.activeTexture(gl.TEXTURE0 + unit);
+    tex.bindTex();
+    gl.uniform1i(handleName, unit);
   }
 
   use() {
@@ -80,7 +94,7 @@ class ShaderProgram {
   setDimensions(width: number, height: number) {
     this.use();
     if(this.unifDimensions !== -1) {
-      gl.uniform2f(this.unifDimensions, width, height);
+      gl.uniform2f(this.unifDimensions, 752, 582);
     }
   }
 
