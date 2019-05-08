@@ -27,7 +27,7 @@ class OpenGLRenderer {
   }
 
   render(camera: Camera, prog: ShaderProgram, drawables: Array<Drawable>, time: number, 
-    map: string, translation: vec2, start: boolean) {
+    map: string, translation: vec2, start: boolean, power: boolean, timer: number) {
 
     this.canvas.width = size[0];
     this.canvas.height = size[1];
@@ -108,12 +108,17 @@ class OpenGLRenderer {
       prog.setTime(time);
       prog.setTrans(translation);
       prog.setMap(map);
+      prog.setPower(power);
+      prog.setPowerTimer(timer);
 
       if (pixels[2] == 255 && pixels[1] == 0 && pixels[0] == 0) {
-        return true;
+        return 0.0;
+      }
+      else if (pixels[2] == 0 && pixels[1] == 0 && pixels[0] == 255) {
+        return 1.0;
       }
       else {
-        return false;
+        return 2.0;
       }
     }
   };

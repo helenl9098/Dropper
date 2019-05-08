@@ -9,6 +9,8 @@ uniform float u_Bounce;
 uniform vec2 u_Trans;
 uniform float u_Map;
 uniform sampler2D u_NoiseTex1;
+uniform float u_Power;
+uniform float u_PowerTimer;
 
 
 in vec2 fs_Pos;
@@ -89,29 +91,6 @@ float heightmap(vec2 uv)
     //return 0.0;
   }
 
-  float distfunc(vec3 pos)
-  {
-    float time = u_Time / 70.0;
-    vec3 p2 = pos;
-    p2.x += sin(p2.z*3.0 + p2.y*5.0)*0.15;
-    p2.xy *= rot(floor(p2.z*2.0)*twist.y);
-    pos.xy *= rot(pos.z*twist.x);
-    
-    float h = heightmap(pos.xz)*heightInfluence.x;
-    
-    vec3 columnsrep = vec3(0.75,1.0,0.5);
-    vec3 reppos = (mod(p2 + vec3(time*0.01 + sin(pos.z*0.5),0.0,0.0),columnsrep)-0.5*columnsrep);
-    
-    float columnsScaleX = 1.0 + sin(p2.y*20.0*sin(p2.z) + time*5.0 + pos.z)*0.15;
-    float columnsScaleY = (sin(time + pos.z*4.0)*0.5+0.5);
-    
-    float columns = sphere(vec3(reppos.x, pos.y+0.25, reppos.z), 0.035, vec3(columnsScaleX,columnsScaleY,columnsScaleX));
-    float corridor = planesDistance - abs(pos.y) + h;
-    float d = smin(corridor, columns, 0.25); 
-
-    return d;
-  }
-
 //Taken from https://www.shadertoy.com/view/Xds3zN
 mat3 setCamera( in vec3 ro, in vec3 ta, float cr )
 {
@@ -122,16 +101,6 @@ mat3 setCamera( in vec3 ro, in vec3 ta, float cr )
   return mat3( cu, cv, cw );
 }
 
-vec3 calculateNormals(vec3 pos)
-{
-  vec2 eps = vec2(0.0, EPSILON*1.0);
-  vec3 n = normalize(vec3(
-    distfunc(pos + eps.yxx) - distfunc(pos - eps.yxx),
-    distfunc(pos + eps.xyx) - distfunc(pos - eps.xyx),
-    distfunc(pos + eps.xxy) - distfunc(pos - eps.xxy)));
-
-  return n;
-}
 
 //Taken from https://www.shadertoy.com/view/XlXXWj
 vec3 doBumpMap(vec2 uv, vec3 nor, float bumpfactor)
@@ -256,6 +225,35 @@ vec2 path(float t) {
   return vec2(2.*a, a*b);
 }
 
+float powerUpSDF(vec3 p) {
+      vec3 c = vec3(0.0, 0.0, 60.0);
+      vec3 q = mod(p + vec3(sin(p.z) * 0.2, 
+                    cos(p.z) * 0.1, 0.0),c)-0.5*c;
+      return sdSphere(q, 0.03);
+}
+
+  float distfunc(vec3 pos)
+  {
+    float time = u_Time / 70.0;
+    vec3 p2 = pos;
+    p2.x += sin(p2.z*3.0 + p2.y*5.0)*0.15;
+    p2.xy *= rot(floor(p2.z*2.0)*twist.y);
+    pos.xy *= rot(pos.z*twist.x);
+    
+    float h = heightmap(pos.xz)*heightInfluence.x;
+    
+    vec3 columnsrep = vec3(0.75,1.0,0.5);
+    vec3 reppos = (mod(p2 + vec3(time*0.01 + sin(pos.z*0.5),0.0,0.0),columnsrep)-0.5*columnsrep);
+    
+    float columnsScaleX = 1.0 + sin(p2.y*20.0*sin(p2.z) + time*5.0 + pos.z)*0.15;
+    float columnsScaleY = (sin(time + pos.z*4.0)*0.5+0.5);
+    
+    float columns = sphere(vec3(reppos.x, pos.y+0.25, reppos.z), 0.035, vec3(columnsScaleX,columnsScaleY,columnsScaleX));
+    float corridor = planesDistance - abs(pos.y) + h;
+    float d = smin(corridor, columns, 0.25); 
+    return d;
+  }
+
 
 float g = 0.;
 float sceneSDF(vec3 p) {
@@ -295,6 +293,17 @@ float sceneSDF(vec3 p) {
     return d;
   }
 
+}
+
+vec3 calculateNormals(vec3 pos)
+{
+  vec2 eps = vec2(0.0, EPSILON*1.0);
+  vec3 n = normalize(vec3(
+    distfunc(pos + eps.yxx) - distfunc(pos - eps.yxx),
+    distfunc(pos + eps.xyx) - distfunc(pos - eps.xyx),
+    distfunc(pos + eps.xxy) - distfunc(pos - eps.xxy)));
+
+  return n;
 }
 
 vec3 estimateNormal(vec3 p) {
@@ -438,13 +447,33 @@ vec3 rayMarch(vec3 dir) {
     vec3 col = vec3(0.0);
     float glow = 3.0;
     
+    float dist2 = EPSILON;
     for(int j = 0; j < MAX_ITER; j++)
     {
       dist = distfunc(pos);
-      totalDist = totalDist + dist;
-      pos += dist*dir;
+      dist2 = powerUpSDF(pos);
+
+      totalDist = totalDist + min(dist, dist2);
+      pos += min(dist2, dist)*dir;
       if (distfunc(eye + vec3(0, 0, 0.1)) < 0.03) {
         return vec3(0, 0, 1);
+      }
+      if (powerUpSDF(eye + vec3(0, 0, 0.1)) < 0.03) {
+        return vec3(1, 0, 0);
+      }
+
+      // determine vignette color
+      vignetteColor = mix(vec3(1.0), vec3(0.2, 0.4, 0.0), vignette);
+      if (u_Power == 1.0 && u_PowerTimer < 400.0) {
+        vignetteColor = mix(vec3(1.0), vec3(1.0 - 0.1* sin(u_Time / 5.0), 0.0, 1.0 - 0.1* sin(u_Time / 5.0)), vignette + 0.1);
+      }
+      else if (u_Power == 1.0 && u_PowerTimer > 400.0) {
+        vignetteColor = mix(vec3(1.0), vec3(sin(u_Time / 5.0) * 0.5 + 0.5, 0.0, sin(u_Time / 5.0) * 0.5 + 0.5), vignette + 0.1);
+      }
+
+ 
+      if (dist2 < EPSILON) {
+        return vec3(1.0,1.0, sin(u_Time / 15.0) * 0.5 + 0.9) * vignetteColor;
       }
 
       if(dist < EPSILON || totalDist > MAX_DIST)
@@ -470,11 +499,8 @@ vec3 rayMarch(vec3 dir) {
         vec4 res = mix(vec4(c, rim), fogColor, clamp(fog+heightfog,0.0,1.0));
 
         vec3 finalcolor = vec3(res);
-        if (finalcolor == vec3(0.0, 0.0, 0.0)) {
-          return vec3(1.0, 0.0, 0.0);
-        }
 
-        return vec3(res);
+        return vec3(res) * vignetteColor;
       //return vec3(1, 0, 0);
     }
   } 
@@ -503,9 +529,26 @@ vec3 rayMarch(vec3 dir) {
         if (sceneSDF(ro) < 0.0003) {
           return vec3(0, 0, 1);
         }
+        if (powerUpSDF(eye + vec3(0, 0, 0.1)) < 0.03) {
+        return vec3(1, 0, 0);
+          }
+
+                // determine vignette color
+      vignetteColor = mix(vec3(1.0), vec3(0.2, 0.4, 0.0), vignette);
+      if (u_Power == 1.0 && u_PowerTimer < 400.0) {
+        vignetteColor = mix(vec3(1.0), vec3(1.0 - 0.1* sin(u_Time / 5.0), 0.0, 1.0 - 0.1* sin(u_Time / 5.0)), vignette + 0.1);
+      }
+      else if (u_Power == 1.0 && u_PowerTimer > 400.0) {
+        vignetteColor = mix(vec3(1.0), vec3(sin(u_Time / 5.0) * 0.5 + 0.5, 0.0, sin(u_Time / 5.0) * 0.5 + 0.5), vignette + 0.1);
+      }
 
         for (float i = 0.0; i < 1.0; i+= .01) {
           float dist = sceneSDF(p);
+          float dist2 = powerUpSDF(p);
+
+          if (dist2 < EPSILON) {
+        return vec3(1.0,1.0, sin(u_Time / 15.0) * 0.5 + 0.9) * vignetteColor;
+      }
 
           if (dist < EPSILON) {
 
@@ -526,7 +569,7 @@ vec3 rayMarch(vec3 dir) {
         c += g * .4;
         c.g += sin(u_Time)*.2 + sin(p.z*.5 - u_Time * .1);// red rings
         c = mix(c, vec3(.2, .1, .2), 1. - exp(-.001*t*t));// fog
-        return c;
+        return c * vignetteColor;
       }
     }
 
