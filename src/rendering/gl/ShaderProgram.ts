@@ -35,6 +35,8 @@ class ShaderProgram {
   unifTrans : WebGLUniformLocation;
   unifMap: WebGLUniformLocation;
   unifSampler1: WebGLUniformLocation;
+  unifPowerUp: WebGLUniformLocation;
+  unifPowerUpTimer: WebGLUniformLocation;
 
   constructor(shaders: Array<Shader>) {
 
@@ -61,6 +63,8 @@ class ShaderProgram {
     this.unifTrans = gl.getUniformLocation(this.prog, "u_Trans");
     this.unifMap = gl.getUniformLocation(this.prog, "u_Map");
     this.unifSampler1   = gl.getUniformLocation(this.prog, "u_NoiseTex1");
+    this.unifPowerUp = gl.getUniformLocation(this.prog, "u_Power");
+    this.unifPowerUpTimer = gl.getUniformLocation(this.prog, "u_PowerTimer");
   }
 
     // Bind the given Texture to the given texture unit
@@ -75,6 +79,23 @@ class ShaderProgram {
     if (activeProgram !== this.prog) {
       gl.useProgram(this.prog);
       activeProgram = this.prog;
+    }
+  }
+
+  setPower(p: boolean) {
+    this.use();
+    if (p && this.unifPowerUp != -1) {
+      gl.uniform1f(this.unifPowerUp, 1.0);
+    }
+    else if (this.unifPowerUp != -1) {
+      gl.uniform1f(this.unifPowerUp, 0.0);
+    }
+  }
+
+  setPowerTimer(t: number) {
+    this.use();
+    if(this.unifPowerUpTimer !== -1) {
+      gl.uniform1f(this.unifPowerUpTimer, t);
     }
   }
 

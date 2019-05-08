@@ -14,7 +14,9 @@ const controls = {
   map: 'corridor',
   difficulty:'easy', 
   corridorTexture: 'pebbles',
-  intersection: true
+  intersection: true,
+  powerUp: false,
+  powerUpTimer: 0
 };
 
 let square: Square;
@@ -266,10 +268,15 @@ function main() {
 
     var intersect = renderer.render(camera, flat, [
       square,
-      ], time, controls.map, translation, start);
+      ], time, controls.map, translation, start, controls.powerUp, controls.powerUpTimer);
     
     // INTERSECTION TESTING
-    if (intersect && controls.intersection) {
+    if (controls.powerUp && controls.powerUpTimer > 500.0) {
+        controls.powerUp = false;
+        controls.powerUpTimer = 0.0;
+        controls.intersection = true;
+    }
+    if (intersect == 0.0 && controls.intersection) {
       //console.log("intersected!");
       time = 0.1;
       translation[0] = 0.0;
@@ -279,7 +286,7 @@ function main() {
       velocity = 1.0;
       updateCurrentScore(0);
     }
-    else if (start && (!intersect || !controls.intersection)) {
+    else if (start && (intersect== 2.0 || intersect == 1.0 || !controls.intersection)) {
       // slow start
       // //console.log("time");
       // if (time < 4.0) {
@@ -290,6 +297,17 @@ function main() {
       //       time++;
       //     }
       // } else {
+
+            // hit a powerup!
+    if (controls.intersection && intersect == 1.0 && !controls.powerUp) {
+      //console.log("intersected powerup!");
+        controls.intersection = false;
+        controls.powerUp = true;
+    }
+    if (controls.powerUp) {
+        controls.powerUpTimer++;
+      }
+        //console.log(controls.powerUpTimer);
         time += velocity;
 
         if (controls.difficulty == "easy") {
